@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="ko" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NVH USA 랜섬웨어 대응 및 보안 강화 리포트</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Chosen Palette: Cool Neutrals (Slate, Blue) + Emerald (New Solution Highlight) -->
+    <!-- Application Structure Plan: 
+        - 구조: 7개의 섹션(개요, 사고 분석, 솔루션 아키텍처, 실행 계획(WBS), 필수 체크리스트, 임직원 수칙, 비용 분석)으로 구성된 SPA.
+        - 상호작용: 
+            1. 내비게이션 링크 클릭 시 해당 섹션으로 부드럽게 이동.
+            2. '솔루션 아키텍처' 섹션: 강조된 버튼 클릭 시 해당 솔루션의 상세 설명 동적 표시.
+            3. '실행 계획 (WBS)' 및 '필수 체크리스트' 섹션: 항목별 체크박스 상태와 코멘트를 **Supabase DB (BT_CHK 테이블)에 저장 및 불러오기** 기능 추가.
+            4. '비용 분석' 섹션: Chart.js 막대 차트.
+        - 구조 선정 이유: '문제 -> 원인 -> 해결책 -> 실행 -> 검증'의 논리적 흐름 유지 및 데이터 비교를 통한 투자 당위성 강조.
+    -->
+    <!-- Visualization & Content Choices: 
+        1.  Report Info: TO-BE 아키텍처
+            - Viz/Method: 'TO-BE 아키텍처' (HTML/Tailwind) - 4단계 블록 타입 플로우 다이어그램. (디자인 개선)
+            - Interaction: 4가지 핵심 솔루션에 대한 강조된 버튼형 탭 (JS) 제공.
+            - Justification: 계층화된 디자인을 통해 보안 솔루션의 역할과 흐름을 명확하게 인지하도록 개선.
+        2.  Report Info: 비용 데이터
+            - Viz/Method: '비용 분석' 막대 차트 (Chart.js/Canvas). 타사 평균 피해액 비교 데이터 추가.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 400px;
+            max-height: 50vh;
+        }
+        .nav-link {
+            @apply px-3 py-2 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors;
+        }
+        .nav-link.active {
+            @apply text-blue-600 border-b-2 border-blue-600;
+        }
+        /* Enhanced Button Style for Solutions */
+        .solution-tab {
+            @apply flex items-center px-5 py-2 text-base font-bold text-slate-700 bg-white border-2 border-slate-300 rounded-lg shadow-sm hover:bg-blue-50 hover:border-blue-500 cursor-pointer transition-all duration-200;
+        }
+        .solution-tab.active {
+            @apply bg-blue-600 text-white border-blue-600 shadow-lg transform scale-[1.02] hover:bg-blue-700;
+        }
+        .solution-pane {
+            display: none;
+        }
+        .solution-pane.active {
+            display: block;
+        }
+        /* Analysis Diagram Styles */
+        .diag-box {
+            @apply flex flex-col items-center justify-center p-3 rounded-lg shadow-md h-28;
+        }
+        .diag-arrow {
+            @apply flex items-center justify-center text-3xl text-blue-400 font-light;
+        }
+        .diag-fail {
+            @apply bg-red-100 border-2 border-red-500 text-red-800 font-medium mt-2 p-2 rounded-md text-sm;
+        }
+        /* TO-BE Diagram Styles (Block Flow) */
+        .flow-block-container {
+            @apply rounded-xl p-6 shadow-xl h-full flex flex-col;
+        }
+        /* 1단계 제목 스타일 */
+        .flow-header-base {
+            @apply flex items-center mb-3 p-3 rounded-t-lg bg-slate-600 text-white;
+        }
+        .flow-header-core {
+            @apply flex items-center mb-3 p-3 rounded-t-lg bg-blue-600 text-white;
+        }
+        .flow-header-security {
+            @apply flex items-center mb-3 p-3 rounded-t-lg bg-emerald-600 text-white;
+        }
+        .flow-body {
+            @apply p-4 rounded-b-lg flex-1;
+        }
+        .flow-core {
+            @apply bg-white border-t-4 border-blue-600;
+        }
+        .flow-security {
+            @apply bg-white border-t-4 border-emerald-600;
+        }
+        .flow-base {
+            @apply bg-white border-t-4 border-slate-600;
+        }
+        .flow-title {
+            @apply text-xl font-bold ml-3;
+        }
+        .flow-title-emphasized {
+             @apply text-2xl font-extrabold ml-3 text-white;
+        }
+        .flow-item-badge {
+            @apply inline-flex items-center text-sm font-medium px-3 py-1 rounded-full mr-2 mb-2;
+        }
+        .badge-core {
+            @apply bg-blue-100 text-blue-800 border border-blue-300;
+        }
+        .badge-security {
+            @apply bg-emerald-100 text-emerald-800 border border-emerald-300;
+        }
+        .badge-new {
+            @apply bg-red-100 text-red-800 border border-red-300 font-bold;
+        }
+        /* Flow Arrow Styles for Clarity (Vertical maintained for mobile) */
+        .flow-arrow-vertical {
+            @apply text-5xl text-blue-500 text-center my-6 font-extrabold lg:hidden;
+        }
+        /* WBS Checkbox Styles */
+        .wbs-task {
+            @apply flex items-start p-2 hover:bg-slate-50 rounded-md transition-colors space-x-3;
+        }
+        .wbs-task .task-content {
+            @apply flex-1 flex flex-col md:flex-row md:items-center justify-between;
+        }
+        .wbs-task label {
+            @apply flex items-start text-base cursor-pointer flex-1;
+        }
+        .wbs-task input[type="checkbox"] {
+            @apply mt-1 mr-3 h-5 w-5 border-2 border-blue-400 checked:bg-blue-600 checked:border-blue-600 rounded appearance-none transition-colors duration-200;
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        .checked-task {
+            @apply text-slate-400 line-through;
+        }
+        .comment-input {
+            @apply w-full md:w-1/3 p-1 border border-slate-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500 mt-2 md:mt-0;
+        }
+        /* Utility for Alerts */
+        .alert-box {
+            @apply fixed top-5 right-5 z-50 p-4 rounded-lg shadow-xl text-white font-bold transition-transform duration-500 transform translate-x-full;
+        }
+        .alert-box.active {
+            @apply translate-x-0;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+    
+    <!-- Alert Box -->
+    <div id="alert-box" class="alert-box bg-green-500"></div>
+
+    <!-- Header & Navigation -->
+    <header class="sticky top-0 z-50 bg-white shadow-md w-full">
+        <nav class="container mx-auto flex flex-col md:flex-row justify-between items-center px-6 py-3">
+            <h1 class="text-xl md:text-2xl font-bold text-blue-700">NVH USA 보안 대응 및 강화 리포트</h1>
+            <div class="flex flex-wrap justify-center space-x-2 md:space-x-4 mt-2 md:mt-0" id="nav-menu">
+                <a href="#overview" class="nav-link active">개요</a>
+                <a href="#analysis" class="nav-link">사고 분석</a>
+                <a href="#solution" class="nav-link">솔루션</a>
+                <a href="#plan" class="nav-link">실행 계획</a>
+                <a href="#checklist" class="nav-link">필수 점검</a>
+                <a href="#rules" class="nav-link">임직원 수칙</a>
+                <a href="#cost" class="nav-link">비용 분석</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-4 md:p-8">
+
+        <!-- 1. 개요 (Overview) -->
+        <section id="overview" class="pt-16 min-h-[90vh] flex items-center">
+            <div class="w-full">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4">NVH USA 랜섬웨어 사고 대응 </h2>
+                    <p class="text-lg text-slate-600 max-w-3xl mx-auto">2025년 10월 16일 발생한 랜섬웨어 감염 사고에 대한 대응 현황과 향후 근본적인 보안 강화를 위한 솔루션 및 실행 계획을 공유합니다.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-red-500">
+                        <h3 class="text-xl font-bold mb-3 text-red-700">사고 발생 (Problem)</h3>
+                        <p class="text-slate-600">25년 10월 16일, 주요 서버 및 백업 데이터가 암호화되어 시스템 접근이 불가능한 긴급 상황이 발생했습니다.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-yellow-500">
+                        <h3 class="text-xl font-bold mb-3 text-yellow-700">핵심 원인 (Cause)</h3>
+                        <p class="text-slate-600">계정관리 미흡(ID/PW 공유), 2차 인증(MFA) 부재, 보안 설정이 미흡한 네트워크(WiFi, 원격접속)가 주요 원인으로 식별되었습니다.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-green-500">
+                        <h3 class="text-xl font-bold mb-3 text-green-700">대응 목표 (Solution)</h3>
+                        <p class="text-slate-600">단순 복구를 넘어, 이중화(HA), EDR, 소산 백업을 도입하여 시스템 안정성 및 보안 체계를 근본적으로 강화하는 것을 목표로 합니다.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 사고 분석 (Analysis) -->
+        <section id="analysis" class="pt-20 min-h-screen">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">사고 원인 및 공격 흐름 분석 </h2>
+                <p class="text-lg text-slate-600 max-w-3xl mx-auto">이번 사고는 복합적인 보안 취약점이 연결되어 발생했습니다. 취약한 진입 경로를 통해 침투한 공격자가 내부 망에서 자유롭게 확산하여 시스템을 마비시켰습니다.</p>
+            </div>
+
+            <div class="bg-white p-6 md:p-10 rounded-lg shadow-xl max-w-6xl mx-auto">
+                <h3 class="text-2xl font-bold text-center mb-8">3단계 공격 흐름: 실패 지점 집중 분석</h3>
+                <div class="flex flex-col md:flex-row items-start justify-between">
+                    
+                    <!-- 1단계: 침입 (Infiltration) -->
+                    <div class="flex-1 min-w-[200px] mb-8 md:mb-0">
+                        <div class="diag-box bg-blue-100 border-blue-600">
+                            <span class="text-4xl">🚪</span>
+                            <h4 class="font-bold mt-2 text-blue-800">1. 취약 경로를 통한 침입</h4>
+                            <p class="text-sm text-blue-600">2차 인증 없는 원격 접속, 보안 없는 WiFi</p>
+                        </div>
+                        <div class="diag-fail">
+                            **최초 실패:** RDP/VPN 접근 통제 부재 및 MFA 미적용
+                        </div>
+                    </div>
+
+                    <div class="diag-arrow mx-auto md:mx-4 transform md:rotate-0 rotate-90">→</div>
+
+                    <!-- 2단계: 확산 (Propagation) -->
+                    <div class="flex-1 min-w-[200px] mb-8 md:mb-0">
+                        <div class="diag-box bg-yellow-100 border-yellow-600">
+                            <span class="text-4xl">🕸️</span>
+                            <h4 class="font-bold mt-2 text-yellow-800">2. 내부 네트워크 확산</h4>
+                            <p class="text-sm text-yellow-600">6개 서버 계정 공유, 내부 방화벽 부재</p>
+                        </div>
+                        <div class="diag-fail">
+                            **확산 실패:** EDR, 내부망 분리(L3), 로그 모니터링 시스템 부재
+                        </div>
+                    </div>
+                    
+                    <div class="diag-arrow mx-auto md:mx-4 transform md:rotate-0 rotate-90">→</div>
+
+                    <!-- 3단계: 최종 피해 (Impact) -->
+                    <div class="flex-1 min-w-[200px]">
+                        <div class="diag-box bg-red-100 border-red-600">
+                            <span class="text-4xl">🔥</span>
+                            <h4 class="font-bold mt-2 text-red-800">3. 시스템 마비 및 암호화</h4>
+                            <p class="text-sm text-red-600">주요 서버 및 백업 데이터 동시 피해</p>
+                        </div>
+                        <div class="diag-fail">
+                            **최종 실패:** 2차 소산 백업 체계 미구축
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 솔루션 (Solution) -->
+        <section id="solution" class="pt-20 min-h-screen">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">보안 강화 솔루션 (TO-BE) 블록 아키텍처 </h2>
+                <p class="text-lg text-slate-600 max-w-3xl mx-auto">TO-BE 아키텍처는 공격 흐름의 각 단계별 실패 지점을 방어하기 위한 **다층 방어(Defense-in-Depth)** 원칙을 적용합니다. 신규 도입 솔루션으로 방어 능력을 획기적으로 향상시킵니다.</p>
+            </div>
+
+            <div class="max-w-7xl mx-auto">
+                <h3 class="text-2xl font-bold text-center mb-8 text-slate-700">4단계 블록 플로우: 다층 방어 체계</h3>
+                
+                <!-- TO-BE Block Flow Diagram (Horizontal arrow removed) -->
+                <div class="flow-row">
+                    
+                    <!-- Block 1: 외부 접근 (Access) -->
+                    <div class="flex-1 min-w-0 p-3">
+                        <div class="flow-block-container flow-base shadow-xl">
+                            <div class="flow-header-base">
+                                <span class="text-3xl">🌐</span>
+                                <h4 class="flow-title-emphasized">1단계: 외부 접근 통제</h4>
+                            </div>
+                            <div class="flow-body flow-base">
+                                <p class="text-slate-600 text-sm mb-3">최초 침입 경로에 대한 원천 봉쇄 계층입니다.</p>
+                                <div class="space-y-2">
+                                    <span class="flow-item-badge badge-core">외부 인터넷</span>
+                                    <span class="flow-item-badge badge-core font-bold">FortiGate (MFA 강화)</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-4 font-medium">**기능:** MFA를 통한 무단 원격 접속 차단</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-arrow-vertical">↓</div>
+
+                    <!-- Block 2: 방어/탐지 계층 (Defense) - New Security Highlight -->
+                    <div class="flex-1 min-w-0 p-3">
+                        <div class="flow-block-container flow-security shadow-xl">
+                            <div class="flow-header-security">
+                                <span class="text-3xl">🚨</span>
+                                <h4 class="flow-title">2단계: 확산 방지/탐지 (신규)</h4>
+                            </div>
+                            <div class="flow-body flow-security">
+                                <p class="text-slate-600 text-sm mb-3">내부 네트워크로 침투한 위협을 실시간으로 포착하고 격리합니다.</p>
+                                <div class="space-y-2">
+                                    <span class="flow-item-badge badge-new">EDR (Genian)</span>
+                                    <span class="flow-item-badge badge-new">FortiAnalyzer (로그 분석)</span>
+                                    <span class="flow-item-badge badge-core">L3 스위치 (네트워크 분리)</span>
+                                </div>
+                                <p class="text-xs text-emerald-700 mt-4 font-medium">**기능:** 악성코드 확산 차단 및 비정상 행위 감시</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow-vertical">↓</div>
+
+                    <!-- Block 3: 코어 인프라 (Core HA) -->
+                    <div class="flex-1 min-w-0 p-3">
+                        <div class="flow-block-container flow-core shadow-xl">
+                            <div class="flow-header-core">
+                                <span class="text-3xl">🛡️</span>
+                                <h4 class="flow-title">3단계: 코어 시스템 HA</h4>
+                            </div>
+                            <div class="flow-body flow-core">
+                                <p class="text-slate-600 text-sm mb-3">랜섬웨어 공격으로 인한 시스템 마비 시에도 서비스 연속성을 보장합니다.</p>
+                                <div class="space-y-2">
+                                    <span class="flow-item-badge badge-core">VMware HA 클러스터</span>
+                                    <span class="flow-item-badge badge-core">sfmes VM (Active/Standby)</span>
+                                    <span class="flow-item-badge badge-core">sfmc VM (Active/Standby)</span>
+                                </div>
+                                <p class="text-xs text-blue-700 mt-4 font-medium">**기능:** 시스템 장애 시 자동 페일오버 (0분 다운타임 목표)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow-vertical">↓</div>
+
+                    <!-- Block 4: 복구 지원 (Recovery) - New Security Highlight -->
+                    <div class="flex-1 min-w-0 p-3">
+                        <div class="flow-block-container flow-security shadow-xl">
+                            <div class="flow-header-security">
+                                <span class="text-3xl">💿</span>
+                                <h4 class="flow-title">4단계: 최종 복구 지원 (신규)</h4>
+                            </div>
+                            <div class="flow-body flow-security">
+                                <p class="text-slate-600 text-sm mb-3">모든 방어선이 무너졌을 때, 최후의 데이터 복원 기회를 제공합니다.</p>
+                                <div class="space-y-2">
+                                    <span class="flow-item-badge badge-new">Veeam 백업 솔루션</span>
+                                    <span class="flow-item-badge badge-new">2차 NAS 소산 저장소</span>
+                                </div>
+                                <p class="text-xs text-emerald-700 mt-4 font-medium">**기능:** 랜섬웨어 불가침 영역 확보 (3-2-1 원칙 준수)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Interactive Tabs (Button Style Enhanced) -->
+                <div class="mt-10 pt-4 border-t border-slate-200">
+                    <h4 class="text-2xl font-bold text-center mb-6 text-slate-700">주요 신규 솔루션 상세 (클릭하여 확인)</h4>
+                    <div id="solution-tabs" class="flex flex-wrap justify-center gap-4 mb-6">
+                        <button class="solution-tab active" data-target="pane-ha">
+                            <span class="button-icon">🔄</span> 1. 시스템 이중화 (HA)
+                        </button>
+                        <button class="solution-tab" data-target="pane-backup">
+                            <span class="button-icon">🔒</span> 2. 2차 소산 백업
+                        </button>
+                        <button class="solution-tab" data-target="pane-edr">
+                            <span class="button-icon">🔍</span> 3. EDR (엔드포인트 대응)
+                        </button>
+                        <button class="solution-tab" data-target="pane-log">
+                            <span class="button-icon">📊</span> 4. 로그 분석 서버
+                        </button>
+                    </div>
+                    <div id="solution-panes" class="bg-white p-6 rounded-lg border-2 border-slate-200 min-h-[150px] shadow-inner">
+                        <div id="pane-ha" class="solution-pane active">
+                            <h4 class="text-xl font-bold mb-2 text-blue-700">시스템 이중화 (High Availability)</h4>
+                            <p class="text-slate-700">**대응 목표:** 시스템 중단 시간(Downtime) 최소화 및 비즈니스 연속성 확보.</p>
+                            <p class="text-slate-700 mt-2">핵심 서버(sfmes, sfmc)를 VMware HA 클러스터로 구성하여 1번 서버 장애 시 **자동으로 2번 서버가 서비스를 인계**받도록 합니다. 이는 복구(Recovery)가 아닌, 장애 발생 시 **운영의 지속성**을 위한 가장 기본적인 조치입니다.</p>
+                        </div>
+                        <div id="pane-backup" class="solution-pane">
+                            <h4 class="text-xl font-bold mb-2 text-emerald-700">2차 소산 백업 (NAS + Veeam)</h4>
+                            <p class="text-slate-700">**대응 목표:** 랜섬웨어 감염 시에도 안전한 최종 복구 데이터 확보.</p>
+                            <p class="text-slate-700 mt-2">기존 백업 체계와 별개로, 네트워크 접근이 철저히 분리된 2차 백업 스토리지(NAS)에 Veeam 솔루션을 통해 데이터를 한 번 더 백업합니다. 이는 **'보안 3-2-1 원칙'**을 준수하는 것으로, 공격자가 내부망 전체를 장악해도 복구 데이터를 파괴하지 못하도록 하는 핵심 방어선입니다.</p>
+                        </div>
+                        <div id="pane-edr" class="solution-pane">
+                            <h4 class="text-xl font-bold mb-2 text-emerald-700">EDR (Endpoint Detection & Response)</h4>
+                            <p class="text-slate-700">**대응 목표:** 랜섬웨어의 <span class="font-bold text-red-600">확산 단계</span>에서 악성 행위를 실시간 탐지하고 선제적으로 격리.</p>
+                            <p class="text-slate-700 mt-2">Genian EDR을 서버와 PC에 설치하여, **계정 관리 미흡으로 인한 침투 후 내부 확산 행위**를 즉시 포착하고 감염 기기를 네트워크에서 자동 격리합니다. 랜섬웨어의 피해를 엔드포인트 단에서 최소화하는 **능동적 대응** 솔루션입니다.</p>
+                        </div>
+                        <div id="pane-log" class="solution-pane">
+                            <h4 class="text-xl font-bold mb-2 text-emerald-700">로그 분석 서버 (FortiAnalyzer)</h4>
+                            <p class="text-slate-700">**대응 목표:** 사고 발생 시 <span class="font-bold text-red-600">정확한 침입 경로 및 원인 분석</span>과 상시적인 보안 모니터링.</p>
+                            <p class="text-slate-700 mt-2">방화벽과 주요 서버의 로그를 통합 수집, 장기간 보관하고 분석합니다. 기존 사고에서 발생했던 **'의심 경로 파악 불가'** 문제를 해결하며, 비정상적인 접근 시도, 실패한 로그인 시도 등을 상시 모니터링하여 침투 시도를 사전에 탐지합니다.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        <!-- 4. 실행 계획 (Plan) - WBS 체크박스 및 저장 버튼 추가 -->
+        <section id="plan" class="pt-20 min-h-screen">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">현지 구축 실행 계획 (WBS) </h2>
+                <p class="text-lg text-slate-600 max-w-3xl mx-auto">11월 17일부터 11월 24일까지 진행되는 현지 집중 구축 작업을 추적합니다. 완료 시 체크박스를 눌러 진행 상황을 기록할 수 있으며, 코멘트와 함께 저장됩니다. (Supabase DB: BT_CHK)</p>
+            </div>
+
+            <div class="bg-white p-6 md:p-10 rounded-lg shadow-xl max-w-4xl mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold">주요 작업 타임라인 (11/17 ~ 11/24)</h3>
+                    <button id="wbs_save_btn" data-part-code="MT" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        WBS 저장 
+                    </button>
+                </div>
+                
+                <div class="relative border-l-4 border-blue-200 ml-4 md:ml-0" id="wbs-timeline" data-group-id="wbs">
+                    <!-- Item 1 -->
+                    <div class="mb-8 ml-8">
+                        <div class="absolute -left-[14px] w-6 h-6 bg-blue-600 rounded-full border-4 border-white"></div>
+                        <h4 class="text-xl font-bold text-blue-700">D-1 (11/17, 월) - 초기 환경 설정 및 인프라 구축</h4>
+                        <p class="text-sm text-slate-500 mb-2">도착, 환경 점검 및 인프라 기본 구축</p>
+                        <div class="space-y-1">
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-1-1" class="text-slate-700"><input type="checkbox" id="wbs-1-1" data-task-id="D-1-1">현지 Kick-off 미팅 및 인프라 실사</label><input type="text" class="comment-input" data-comment-id="D-1-1" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-1-2" class="text-slate-700"><input type="checkbox" id="wbs-1-2" data-task-id="D-1-2">L3 스위치 및 방화벽 설치, 기본 설정</label><input type="text" class="comment-input" data-comment-id="D-1-2" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-1-3" class="text-slate-700"><input type="checkbox" id="wbs-1-3" data-task-id="D-1-3">VMware vCenter 설치 및 클러스터 구성</label><input type="text" class="comment-input" data-comment-id="D-1-3" placeholder="코멘트 입력"></div></div>
+                        </div>
+                    </div>
+                    <!-- Item 2 -->
+                    <div class="mb-8 ml-8">
+                        <div class="absolute -left-[14px] w-6 h-6 bg-blue-600 rounded-full border-4 border-white"></div>
+                        <h4 class="text-xl font-bold text-blue-700">D-2 (11/18, 화) - EDR 보안 솔루션 구축</h4>
+                        <p class="text-sm text-slate-500 mb-2">EDR 및 1차 보안 시스템 설치</p>
+                        <div class="space-y-1">
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-2-1" class="text-slate-700"><input type="checkbox" id="wbs-2-1" data-task-id="D-2-1">EDR(Genian) 서버 설치 및 정책 설정</label><input type="text" class="comment-input" data-comment-id="D-2-1" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-2-2" class="text-slate-700"><input type="checkbox" id="wbs-2-2" data-task-id="D-2-2">EDR 에이전트 배포 (서버 우선)</label><input type="text" class="comment-input" data-comment-id="D-2-2" placeholder="코멘트 입력"></div></div>
+                        </div>
+                    </div>
+                    <!-- Item 3 -->
+                    <div class="mb-8 ml-8">
+                        <div class="absolute -left-[14px] w-6 h-6 bg-blue-600 rounded-full border-4 border-white"></div>
+                        <h4 class="text-xl font-bold text-blue-700">D-3 (11/19, 수) - HA 및 로그 시스템 구축</h4>
+                        <p class="text-sm text-slate-500 mb-2">로그 서버 및 시스템 이중화</p>
+                        <div class="space-y-1">
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-3-1" class="text-slate-700"><input type="checkbox" id="wbs-3-1" data-task-id="D-3-1">로그 분석 서버(FortiAnalyzer) 설치 및 연동</label><input type="text" class="comment-input" data-comment-id="D-3-1" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-3-2" class="text-slate-700 font-bold text-red-600"><input type="checkbox" id="wbs-3-2" data-task-id="D-3-2">[야간] sfmes, sfmc 서버 이중화(HA) 구성</label><input type="text" class="comment-input" data-comment-id="D-3-2" placeholder="코멘트 입력"></div></div>
+                        </div>
+                    </div>
+                    <!-- Item 4 -->
+                    <div class="mb-8 ml-8">
+                        <div class="absolute -left-[14px] w-6 h-6 bg-blue-600 rounded-full border-4 border-white"></div>
+                        <h4 class="text-xl font-bold text-blue-700">D-4 (11/20, 목) - 2차 백업 시스템 구축</h4>
+                        <p class="text-sm text-slate-500 mb-2">2차 소산 백업 시스템 완성</p>
+                        <div class="space-y-1">
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-4-1" class="text-slate-700"><input type="checkbox" id="wbs-4-1" data-task-id="D-4-1">2차 백업용 NAS 스토리지 설치 및 구성</label><input type="text" class="comment-input" data-comment-id="D-4-1" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-4-2" class="text-slate-700"><input type="checkbox" id="wbs-4-2" data-task-id="D-4-2">Veeam 백업 솔루션 설치 및 백업 정책 적용</label><input type="text" class="comment-input" data-comment-id="D-4-2" placeholder="코멘트 입력"></div></div>
+                        </div>
+                    </div>
+                    <!-- Item 5 -->
+                    <div class="mb-8 ml-8">
+                        <div class="absolute -left-[14px] w-6 h-6 bg-blue-600 rounded-full border-4 border-white"></div>
+                        <h4 class="text-xl font-bold text-blue-700">D-5 ~ D-6 (11/21 ~ 22) - 테스트 및 안정화</h4>
+                        <p class="text-sm text-slate-500 mb-2">시스템 전반 통합 테스트</p>
+                        <div class="space-y-1">
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-5-1" class="text-slate-700"><input type="checkbox" id="wbs-5-1" data-task-id="D-5-1">시스템 이중화(HA) 페일오버 테스트</label><input type="text" class="comment-input" data-comment-id="D-5-1" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-5-2" class="text-slate-700"><input type="checkbox" id="wbs-5-2" data-task-id="D-5-2">백업/복구 시나리오 (VM, 파일 단위) 테스트</label><input type="text" class="comment-input" data-comment-id="D-5-2" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-5-3" class="text-slate-700"><input type="checkbox" id="wbs-5-3" data-task-id="D-5-3">보안 정책 적용 및 모니터링</label><input type="text" class="comment-input" data-comment-id="D-5-3" placeholder="코멘트 입력"></div></div>
+                        </div>
+                    </div>
+                    <!-- Item 6 -->
+                    <div class="mb-8 ml-8">
+                        <div class="absolute -left-[14px] w-6 h-6 bg-blue-600 rounded-full border-4 border-white"></div>
+                        <h4 class="text-xl font-bold text-blue-700">D-7 ~ D-8 (11/23 ~ 24) - 최종 마무리</h4>
+                        <p class="text-sm text-slate-500 mb-2">교육, 최종 점검 및 귀국</p>
+                        <div class="space-y-1">
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-6-1" class="text-slate-700"><input type="checkbox" id="wbs-6-1" data-task-id="D-7-1">현지 IT 담당자 관리자 교육 (Veeam, EDR)</label><input type="text" class="comment-input" data-comment-id="D-7-1" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-6-2" class="text-slate-700"><input type="checkbox" id="wbs-6-2" data-task-id="D-7-2">운영 가이드 및 산출물 전달, 작업 확인서 서명</label><input type="text" class="comment-input" data-comment-id="D-7-2" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-6-3" class="text-slate-700"><input type="checkbox" id="wbs-6-3" data-task-id="D-7-3">(24일) 귀국 준비 및 출장 종료</label><input type="text" class="comment-input" data-comment-id="D-7-3" placeholder="코멘트 입력"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 5. 필수 체크리스트 (Mandatory Checklist) -->
+        <section id="checklist" class="pt-20 min-h-screen">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">출장 시 필수 완료 항목 체크리스트 </h2>
+                <p class="text-lg text-slate-600 max-w-3xl mx-auto">출장 기간 중 반드시 최종 검토 및 확인되어야 할 핵심 보안 강화 필수 항목 목록입니다. 코멘트와 함께 저장됩니다. (Supabase DB: BT_CHK)</p>
+            </div>
+
+            <div class="bg-white p-6 md:p-10 rounded-lg shadow-xl max-w-4xl mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-red-600">보안 강화 3대 핵심 성공 지표 (MUST-DO)</h3>
+                    <button id="mandatory_save_btn" data-part-code="MD" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        필수 항목 저장 
+                    </button>
+                </div>
+                
+                <div class="space-y-4" id="mandatory-checklist" data-group-id="mandatory">
+                    <div class="wbs-task border-b pb-3 border-red-200">
+                         <div class="task-content">
+                            <label for="chk-m-1" class="text-red-700 font-bold flex-1"><input type="checkbox" id="chk-m-1" data-task-id="MD-1">1. 2차 소산 백업 (3-2-1 원칙) 완전 구축 확인</label>
+                            <input type="text" class="comment-input" data-comment-id="MD-1" placeholder="검증 결과 코멘트">
+                        </div>
+                        <p class="text-sm text-slate-600 ml-8 mt-1 md:ml-0 md:mt-0">NAS가 물리적으로 분리되고, Veeam을 통한 2차 백업이 성공적으로 1회 이상 완료되었는지 검증.</p>
+                    </div>
+                    <div class="wbs-task border-b pb-3 border-red-200">
+                        <div class="task-content">
+                            <label for="chk-m-2" class="text-red-700 font-bold flex-1"><input type="checkbox" id="chk-m-2" data-task-id="MD-2">2. HA (이중화) 페일오버 자동 전환 테스트 성공</label>
+                            <input type="text" class="comment-input" data-comment-id="MD-2" placeholder="검증 결과 코멘트">
+                        </div>
+                        <p class="text-sm text-slate-600 ml-8 mt-1 md:ml-0 md:mt-0">sfmes/sfmc Active 서버를 강제 종료 시 Standby 서버로 서비스가 5분 이내 자동 전환됨을 현지에서 시연 및 확인.</p>
+                    </div>
+                    <div class="wbs-task border-b pb-3 border-red-200">
+                        <div class="task-content">
+                            <label for="chk-m-3" class="text-red-700 font-bold flex-1"><input type="checkbox" id="chk-m-3" data-task-id="MD-3">3. EDR 및 FortiAnalyzer 정책 활성화 및 모니터링 확인</label>
+                            <input type="text" class="comment-input" data-comment-id="MD-3" placeholder="검증 결과 코멘트">
+                        </div>
+                        <p class="text-sm text-slate-600 ml-8 mt-1 md:ml-0 md:mt-0">EDR 서버 및 주요 엔드포인트에 에이전트 설치 완료, FortiAnalyzer에서 로그 수집 및 비정상 접근 시도 탐지 알림 기능 정상 작동 확인.</p>
+                    </div>
+
+                    <div class="flex justify-between items-center mb-6 pt-6 border-t">
+                        <h3 class="text-xl font-bold text-blue-700">기타 보안 및 운영 환경 필수 항목</h3>
+                        <button id="etc_save_btn" data-part-code="ETC" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                            기타 항목 저장
+                        </button>
+                    </div>
+
+                    <div id="etc-checklist" data-group-id="etc" class="space-y-4">
+                        <div class="wbs-task"><div class="task-content"><label for="chk-e-1" class="text-slate-700"><input type="checkbox" id="chk-e-1" data-task-id="ETC-1">기존 서버 6대 계정 분리 및 새 비밀번호 적용 완료</label><input type="text" class="comment-input" data-comment-id="ETC-1" placeholder="코멘트 입력"></div></div>
+                        <div class="wbs-task"><div class="task-content"><label for="chk-e-2" class="text-slate-700"><input type="checkbox" id="chk-e-2" data-task-id="ETC-2">방화벽 MFA(2차 인증) 설정 및 현지 직원 테스트</label><input type="text" class="comment-input" data-comment-id="ETC-2" placeholder="코멘트 입력"></div></div>
+                        <div class="wbs-task"><div class="task-content"><label for="chk-e-3" class="text-slate-700"><input type="checkbox" id="chk-e-3" data-task-id="ETC-3">현지 IT 담당자 대상 솔루션 관리자 교육 완료</label><input type="text" class="comment-input" data-comment-id="ETC-3" placeholder="코멘트 입력"></div></div>
+                        <div class="wbs-task"><div class="task-content"><label for="chk-e-4" class="text-slate-700"><input type="checkbox" id="chk-e-4" data-task-id="ETC-4">최종 시스템 아키텍처 및 운영 매뉴얼 문서 현지 전달</label><input type="text" class="comment-input" data-comment-id="ETC-4" placeholder="코멘트 입력"></div></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. 임직원 수칙 (Rules) -->
+        <section id="rules" class="pt-20 min-h-screen">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">재발 방지를 위한 임직원 행동 수칙</h2>
+                <p class="text-lg text-slate-600 max-w-3xl mx-auto">기술적인 솔루션만큼 중요한 것은 '사람'입니다. 모든 임직원은 다음 5가지 필수 행동 수칙을 반드시 준수해야 합니다.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                <!-- Rule 1 -->
+                <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+                    <span class="text-5xl">🛡️</span>
+                    <h3 class="text-xl font-bold my-3">1. 2차 인증(MFA) 필수 사용</h3>
+                    <p class="text-slate-600">원격 접속(VPN, RDP) 및 모든 중요 시스템 접속 시, ID/PW 외에 OTP, SMS 등 2차 인증을 반드시 사용합니다. (NVH USA 미적용)</p>
+                </div>
+                <!-- Rule 2 -->
+                <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+                    <span class="text-5xl">🔑</span>
+                    <h3 class="text-xl font-bold my-3">2. 계정/비밀번호 공유 절대 금지</h3>
+                    <p class="text-slate-600">개인 계정은 본인만 사용하며, 시스템별로 강력하고 고유한 비밀번호를 설정합니다. (NVH USA 6개 서버 동일 계정 사용)</p>
+                </div>
+                <!-- Rule 3 -->
+                <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+                    <span class="text-5xl">📧</span>
+                    <h3 class="text-xl font-bold my-3">3. 의심스러운 메일/파일 금지</h3>
+                    <p class="text-slate-600">출처가 불분명한 이메일의 첨부파일이나 URL 링크는 절대 열람하지 않습니다. 피싱 공격의 주요 경로입니다.</p>
+                </div>
+                <!-- Rule 4 -->
+                <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+                    <span class="text-5xl">📶</span>
+                    <h3 class="text-xl font-bold my-3">4. 안전한 네트워크 사용</h3>
+                    <p class="text-slate-600">업무용 기기는 검증되지 않은 공용 WiFi에 접속하지 않습니다. 재택근무 시에도 보안이 설정된 WiFi를 사용합니다. (NVH USA WiFi 보안 미흡)</p>
+                </div>
+                <!-- Rule 5 -->
+                <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+                    <span class="text-5xl">🚨</span>
+                    <h3 class="text-xl font-bold my-3">5. 이상 징후 즉시 신고</h3>
+                    <p class="text-slate-600">PC가 느려지거나, 파일이 열리지 않거나, 이상한 창이 뜨는 등 의심 징후 발견 시 즉시 PC를 종료하지 말고 IT팀에 신고합니다.</p>
+                </div>
+                <div class="bg-blue-50 p-6 rounded-lg shadow-lg border border-blue-200 flex items-center justify-center">
+                    <p class="text-center text-blue-700 font-medium">보안은 기술이 아닌,<br /> 우리 모두의 <span class="font-bold text-xl">'행동'</span>과 <span class="font-bold text-xl">'습관'</span>입니다.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 7. 비용 분석 (Cost) -->
+        <section id="cost" class="pt-20 min-h-screen">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">비용 분석 (Cost Analysis) </h2>
+                <p class="text-lg text-slate-600 max-w-3xl mx-auto">이번 사고 대응에 소요된 긴급 비용과, 향후 재발 방지를 위한 솔루션 도입 및 구축 투자 비용을 타사 랜섬웨어 평균 피해액과 비교합니다.</p>
+            </div>
+            
+            <div class="bg-white p-6 md:p-10 rounded-lg shadow-xl max-w-5xl mx-auto">
+                <h3 class="text-2xl font-bold text-center mb-8">타사 평균 피해액 vs NVH 투자 비용 비교</h3>
+                <div class="chart-container">
+                    <canvas id="costChart"></canvas>
+                </div>
+                <p class="text-center text-slate-600 mt-4">타사 평균 랜섬웨어 피해액은 **약 70억 원($5.13M)**으로, 이는 **사전 투자 비용의 약 6배**에 달하는 수치입니다. 사전 예방 투자는 비즈니스 중단 비용을 최소화하는 가장 확실한 방안입니다.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-8 mt-12 border-t border-slate-200">
+        <p class="text-sm text-slate-500">NVH ICT기획팀 | 2025. 10</p>
+    </footer>
+
+    <script>
+        // ⭐ 1단계: Supabase 초기화
+        const SUPABASE_URL = 'https://xtcoovvghttnwxwdttqa.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0Y29vdnZnaHR0bnd4d2R0dHFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMDE3NzYsImV4cCI6MjA3Njg3Nzc3Nn0.Fmn9b1FoyklF5jw0oiLKp4JT1zRTY9iq9hiCog6HHpE'; 
+
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Supabase 클라이언트가 초기화되었습니다.', supabaseClient);
+        
+        // 요구사항에 따른 테이블 이름 및 프로젝트 코드
+        const CHECKLIST_TABLE_NAME = 'BT_CHK';
+        const PROJECT_CODE = 'NVH USA 보안 1차 출장';
+
+        // --- Utility Functions ---
+
+        const showAlert = (message, type = 'success') => {
+            const alertBox = document.getElementById('alert-box');
+            alertBox.textContent = message;
+            
+            alertBox.classList.remove('bg-green-500', 'bg-red-500');
+            if (type === 'success') {
+                alertBox.classList.add('bg-green-500');
+            } else if (type === 'error') {
+                alertBox.classList.add('bg-red-500');
+            }
+
+            alertBox.classList.add('active');
+
+            setTimeout(() => {
+                alertBox.classList.remove('active');
+            }, 3000);
+        };
+
+        /**
+         * 특정 그룹의 체크박스 상태와 코멘트를 수집하여 DB 스키마에 맞는 형식으로 변환합니다.
+         * @param {string} containerId 체크박스 컨테이너 ID (wbs-timeline, mandatory-checklist, etc-checklist)
+         * @param {string} partCode MT, MD, ETC
+         * @returns {Array} DB에 저장할 레코드 배열
+         */
+        const collectAndFormatChecklistData = (containerId, partCode) => {
+            const container = document.getElementById(containerId);
+            const itemsToSave = [];
+            const currentDate = new Date().toISOString();
+
+            // 모든 체크박스/코멘트 입력쌍을 찾습니다.
+            container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                const taskId = checkbox.getAttribute('data-task-id'); // D-1-1, MD-1 등
+                
+                // 해당 ID에 매칭되는 코멘트 입력 필드를 찾습니다.
+                const commentInput = document.querySelector(`.comment-input[data-comment-id="${taskId}"]`);
+                const commentValue = commentInput ? commentInput.value : '';
+
+                // DB 스키마에 맞춰 단일 레코드 객체를 생성합니다.
+                itemsToSave.push({
+                    id: taskId, 
+                    created_at: currentDate,
+                    
+                    // ********** 수정된 부분: JSONB 형식에 맞게 객체를 JSON 문자열로 변환 **********
+                    part_code: JSON.stringify({ code: partCode }), // JSONB 형식 저장
+                    // *************************************************************************
+                    
+                    chk_result: checkbox.checked, // true/false
+                    // seq는 DB에서 처리된다고 가정, 클라이언트에서는 전송하지 않음
+                    result_cmt: JSON.stringify({ comment: commentValue }), // JSONB 형식 저장
+                    project_code: JSON.stringify({ code: PROJECT_CODE }) // JSONB 형식 저장
+                    // img_url은 현재 미구현, 필요 시 JSON.stringify({}) 등으로 추가 가능
+                });
+            });
+            return itemsToSave;
+        };
+
+        /**
+         * 체크리스트 상태와 코멘트를 Supabase에 저장합니다.
+         * @param {Array} dataToInsert DB에 삽입할 레코드 배열
+         * @param {string} groupId WBS, mandatory, etc 중 하나 (알림용)
+         */
+        const saveChecklistToDB = async (dataToInsert, groupId) => {
+            if (dataToInsert.length === 0) {
+                 showAlert(`[${groupId}] 저장할 데이터가 없습니다.`, 'error');
+                 return false;
+            }
+
+            try {
+                // 여러 항목을 한 번에 삽입 (Insert)
+                const { error } = await supabaseClient 
+                    .from(CHECKLIST_TABLE_NAME)
+                    .insert(dataToInsert);
+
+                if (error) {
+                    console.error('Supabase 저장 오류:', error);
+                    showAlert(`[${groupId}] 저장 실패: ${error.message}. (DB 구조/권한 확인)`, 'error');
+                    return false;
+                }
+                showAlert(`[${groupId}] 체크리스트 상태 및 코멘트가 성공적으로 저장되었습니다. (${dataToInsert.length} 항목)`, 'success');
+                return true;
+            } catch (err) {
+                console.error('DB 트랜잭션 오류:', err);
+                showAlert(`[${groupId}] 저장 중 예기치 않은 오류 발생.`, 'error');
+                return false;
+            }
+        };
+
+        /**
+         * Supabase에서 저장된 체크리스트 상태와 코멘트를 불러와 적용합니다.
+         * 가장 최근에 저장된 데이터만 사용하기 위해 created_at 기준 최신 데이터를 불러옵니다.
+         * @param {string} partCode MT, MD, ETC
+         * @param {string} groupId WBS, mandatory, etc 중 하나 (알림용)
+         */
+        const loadChecklistFromDB = async (partCode, groupId) => {
+            try {
+                // ********** 수정된 부분: JSONB 컬럼 쿼리 문법 사용 **********
+                const { data, error } = await supabaseClient
+                    .from(CHECKLIST_TABLE_NAME)
+                    // JSONB 필드 part_code에서 'code' 키의 값이 partCode와 일치하는지 확인
+                    .select('id, chk_result, result_cmt, created_at')
+                    .eq('part_code->>code', partCode)
+                    .order('created_at', { ascending: false });
+                // ***************************************************************
+                
+                if (error && error.code !== 'PGRST116' && error.code !== 'PGRST205' && error.code !== '22P02') {
+                    console.error('Supabase 불러오기 오류:', error);
+                    showAlert(`[${groupId}] 상태 불러오기 실패.`, 'error');
+                    return;
+                }
+                
+                if (error && (error.code === 'PGRST205' || error.code === '22P02')) {
+                     // 22P02 오류는 JSONB 쿼리 시 발생할 수 있으므로, 테이블이 없거나 데이터 타입 불일치로 간주
+                     console.error(`테이블 '${CHECKLIST_TABLE_NAME}'을 찾을 수 없거나 쿼리 오류 발생. DB 스키마를 확인해주세요.`, error);
+                     showAlert(`[${groupId}] DB 테이블/쿼리 설정 오류.`, 'error');
+                     return;
+                }
+
+                if (data && data.length > 0) {
+                    // ID별로 최신 상태만 추출하여 { taskId: { isChecked: bool, comment: string } } 형태로 만듭니다.
+                    const latestStatus = {};
+                    data.forEach(item => {
+                        if (!latestStatus[item.id]) {
+                            // ID가 처음 등장하면 (created_at 내림차순이므로 최신임) 저장
+                            let comment = '';
+                            try {
+                                comment = JSON.parse(item.result_cmt)?.comment || '';
+                            } catch (e) {
+                                comment = item.result_cmt; // JSON 파싱 실패 시 원본 문자열 사용
+                            }
+
+                            latestStatus[item.id] = {
+                                isChecked: item.chk_result,
+                                comment: comment
+                            };
+                        }
+                    });
+
+                    applyChecklistStatus(groupId, latestStatus);
+                    showAlert(`[${groupId}] 최신 상태를 DB에서 성공적으로 불러왔습니다.`, 'success');
+                } else {
+                    console.log(`[${groupId}] 저장된 데이터가 없습니다.`);
+                }
+
+            } catch (err) {
+                console.error('DB 불러오기 트랜잭션 오류:', err);
+                showAlert(`[${groupId}] 불러오기 중 예기치 않은 오류 발생.`, 'error');
+            }
+        };
+
+        /**
+         * 불러온 상태 데이터를 체크박스와 코멘트 입력란에 적용합니다.
+         * @param {string} groupId WBS, mandatory, etc 중 하나
+         * @param {Object} latestStatus 적용할 최신 상태 데이터
+         */
+        const applyChecklistStatus = (groupId, latestStatus) => {
+            let container;
+            if (groupId === 'wbs') {
+                container = document.getElementById('wbs-timeline');
+            } else if (groupId === 'mandatory') {
+                container = document.getElementById('mandatory-checklist');
+            } else if (groupId === 'etc') {
+                container = document.getElementById('etc-checklist');
+            } else {
+                return;
+            }
+
+            container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                const taskId = checkbox.getAttribute('data-task-id');
+                const state = latestStatus[taskId];
+                
+                const label = document.querySelector(`label[for="${checkbox.id}"]`);
+                const commentInput = document.querySelector(`.comment-input[data-comment-id="${taskId}"]`);
+                
+                if (state) {
+                    checkbox.checked = state.isChecked;
+                    if (label) {
+                        label.classList.toggle('checked-task', state.isChecked);
+                    }
+                    if (commentInput) {
+                        commentInput.value = state.comment || '';
+                    }
+                } else {
+                    // DB에 해당 ID가 없으면 기본 상태 (체크 해제, 코멘트 삭제)
+                    checkbox.checked = false;
+                    if (label) {
+                        label.classList.remove('checked-task');
+                    }
+                    if (commentInput) {
+                        commentInput.value = '';
+                    }
+                }
+            });
+        };
+
+        // --- Main Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- Navigation ScrollSpy (기존 로직 유지) ---
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('#nav-menu a');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        navLinks.forEach(link => {
+                            link.classList.remove('active');
+                            if (link.getAttribute('href').substring(1) === entry.target.id) {
+                                link.classList.add('active');
+                            }
+                        });
+                    }
+                });
+            }, { rootMargin: '-30% 0px -70% 0px', threshold: 0 });
+
+            sections.forEach(section => {
+                observer.observe(section);
+            });
+
+            // --- Solution Tab Logic (기존 로직 유지) ---
+            const tabs = document.querySelectorAll('.solution-tab');
+            const panes = document.querySelectorAll('.solution-pane');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const targetId = tab.getAttribute('data-target');
+
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    panes.forEach(pane => {
+                        pane.classList.remove('active');
+                        if (pane.id === targetId) {
+                            pane.classList.add('active');
+                        }
+                    });
+                });
+            });
+
+            // --- Checkbox Click Handler (DB 적용 전 UI 업데이트) ---
+            const allCheckboxes = document.querySelectorAll('input[type="checkbox"][data-task-id]');
+            allCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const taskId = e.target.getAttribute('data-task-id');
+                    const label = document.querySelector(`label[for="${e.target.id}"]`);
+                    if (label) {
+                        label.classList.toggle('checked-task', e.target.checked);
+                    }
+                });
+            });
+
+
+            // --- Supabase Save Event Listeners ---
+            
+            // WBS 저장 버튼 (MT)
+            document.getElementById('wbs_save_btn').addEventListener('click', () => {
+                const dataToInsert = collectAndFormatChecklistData('wbs-timeline', 'MT');
+                saveChecklistToDB(dataToInsert, 'WBS');
+            });
+
+            // 필수 항목 저장 버튼 (MD)
+            document.getElementById('mandatory_save_btn').addEventListener('click', () => {
+                const dataToInsert = collectAndFormatChecklistData('mandatory-checklist', 'MD');
+                saveChecklistToDB(dataToInsert, '필수 항목');
+            });
+
+            // 기타 항목 저장 버튼 (ETC)
+            document.getElementById('etc_save_btn').addEventListener('click', () => {
+                 const dataToInsert = collectAndFormatChecklistData('etc-checklist', 'ETC');
+                 saveChecklistToDB(dataToInsert, '기타 항목');
+            });
+
+
+            // --- Supabase Load on Initialization ---
+            const loadAllChecklists = async () => {
+                // 각 그룹별로 로드 (part_code 사용)
+                await loadChecklistFromDB('MT', 'wbs');
+                await loadChecklistFromDB('MD', 'mandatory');
+                await loadChecklistFromDB('ETC', 'etc');
+            };
+            loadAllChecklists();
+
+            // --- Cost Chart (Chart.js) (기존 로직 유지) ---
+            
+            // 데이터 분석 및 통합:
+            // 1. 긴급 대응 비용 (인건비/원격 + 현지투입)
+            const emergencyCost = 5885100 + 23085000; // 약 28,970,100 원 (NVH 사후 처리 비용)
+            // 2. 솔루션/장비 도입 비용 (견적서 총액)
+            const solutionInvestmentCost = 99575000; // NVH 사전 투자 비용
+            // 3. 타사 평균 랜섬웨어 총 피해액 (출처: 2024년 글로벌 평균 $5.13M, 약 70억 원, 임의값으로 변환)
+            const averageRansomwareCost = 7000000000; // 70억 원
+
+            const costData = {
+                labels: ['타사 평균 피해액 (총 손실)', 'NVH 사후 대응 비용 (긴급 복구)', 'NVH 사전 투자 비용 (보안 강화)'],
+                datasets: [{
+                    label: '비용 (단위: 원)',
+                    data: [
+                        averageRansomwareCost,
+                        emergencyCost,
+                        solutionInvestmentCost,
+                    ],
+                    backgroundColor: [
+                        'rgba(239, 68, 68, 0.7)', // Red for Loss
+                        'rgba(234, 179, 8, 0.7)', // Yellow for Emergency
+                        'rgba(37, 99, 235, 0.7)', // Blue for Investment
+                    ],
+                    borderColor: [
+                        'rgba(239, 68, 68, 1)',
+                        'rgba(234, 179, 8, 1)',
+                        'rgba(37, 99, 235, 1)',
+                    ],
+                    borderWidth: 1
+                }]
+            };
+
+            const ctx = document.getElementById('costChart').getContext('2d');
+            const costChart = new Chart(ctx, {
+                type: 'bar',
+                data: costData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y', // 수평 막대 그래프로 변경
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value, index, values) {
+                                    // 1억 단위로 표시
+                                    return (value / 100000000).toLocaleString('ko-KR', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' 억';
+                                }
+                            }
+                        },
+                        y: {
+                             ticks: {
+                                // 16자 이상 라벨 줄바꿈 처리
+                                callback: function(value, index, values) {
+                                    const label = this.getLabelForValue(value);
+                                    if (label && label.length > 18) {
+                                        return label.split(' (');
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return context[0].label.replace(/,/g, ' '); // 줄바꿈된 라벨 복원
+                                },
+                                label: function(context) {
+                                    let label = '금액: ';
+                                    if (context.parsed.x !== null) {
+                                        label += Math.round(context.parsed.x).toLocaleString('ko-KR') + ' 원';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+        });
+    </script>
+
+</body>
+</html>
