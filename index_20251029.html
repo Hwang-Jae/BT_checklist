@@ -15,7 +15,7 @@
         - 상호작용: 
             1. 내비게이션 링크 클릭 시 해당 섹션으로 부드럽게 이동.
             2. '솔루션 아키텍처' 섹션: 강조된 버튼 클릭 시 해당 솔루션의 상세 설명 동적 표시.
-            3. '실행 계획 (WBS)' 및 '필수 체크리스트' 섹션: 항목별 체크박스 상태, 코멘트, **사진 파일**을 **Supabase DB 및 Storage에 조건부 저장** 기능 추가.
+            3. '실행 계획 (WBS)' 및 '필수 체크리스트' 섹션: 항목별 체크박스 상태와 코멘트를 **Supabase DB (BT_CHK 테이블)에 저장 및 불러오기** 기능 추가.
             4. '비용 분석' 섹션: Chart.js 막대 차트.
         - 구조 선정 이유: '문제 -> 원인 -> 해결책 -> 실행 -> 검증'의 논리적 흐름 유지 및 데이터 비교를 통한 투자 당위성 강조.
     -->
@@ -139,18 +139,8 @@
         .checked-task {
             @apply text-slate-400 line-through;
         }
-        /* 코멘트/사진 영역을 오른쪽으로 정렬하고 간격을 넓힘 */
-        .comment-area {
-            @apply flex items-center space-x-4 ml-auto justify-end w-full md:w-auto mt-2 md:mt-0;
-        }
         .comment-input {
-            @apply w-full md:w-56 p-1 border border-slate-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500;
-        }
-        .photo-input-label {
-            @apply flex items-center text-sm font-medium text-slate-600 bg-slate-100 border border-slate-300 rounded-md px-3 py-1 cursor-pointer hover:bg-slate-200 transition-colors whitespace-nowrap;
-        }
-        .photo-indicator {
-            @apply w-3 h-3 rounded-full ml-1;
+            @apply w-full md:w-1/3 p-1 border border-slate-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500 mt-2 md:mt-0;
         }
         /* Utility for Alerts */
         .alert-box {
@@ -324,14 +314,14 @@
                         <div class="flow-block-container flow-core shadow-xl">
                             <div class="flow-header-core">
                                 <span class="text-3xl">🛡️</span>
-                                <h4 class="flow-title">3단계: 코어 시스템 이중화</h4>
+                                <h4 class="flow-title">3단계: 코어 시스템 HA</h4>
                             </div>
                             <div class="flow-body flow-core">
                                 <p class="text-slate-600 text-sm mb-3">랜섬웨어 공격으로 인한 시스템 마비 시에도 서비스 연속성을 보장합니다.</p>
                                 <div class="space-y-2">
-                                    <span class="flow-item-badge badge-core">가상화 기반 HA 클러스터</span>
-                                    <span class="flow-item-badge badge-core">주요 서버 (Active/Standby)</span>
-                                    <span class="flow-item-badge badge-core">DB/어플리케이션 서버 이중화</span>
+                                    <span class="flow-item-badge badge-core">VMware HA 클러스터</span>
+                                    <span class="flow-item-badge badge-core">sfmes VM (Active/Standby)</span>
+                                    <span class="flow-item-badge badge-core">sfmc VM (Active/Standby)</span>
                                 </div>
                                 <p class="text-xs text-blue-700 mt-4 font-medium">**기능:** 시스템 장애 시 자동 페일오버 (0분 다운타임 목표)</p>
                             </div>
@@ -381,7 +371,7 @@
                         <div id="pane-ha" class="solution-pane active">
                             <h4 class="text-xl font-bold mb-2 text-blue-700">시스템 이중화 (High Availability)</h4>
                             <p class="text-slate-700">**대응 목표:** 시스템 중단 시간(Downtime) 최소화 및 비즈니스 연속성 확보.</p>
-                            <p class="text-slate-700 mt-2">핵심 서버를 가상화 기반 HA 클러스터로 구성하여 1번 서버 장애 시 **자동으로 2번 서버가 서비스를 인계**받도록 합니다. 이는 복구(Recovery)가 아닌, 장애 발생 시 **운영의 지속성**을 위한 가장 기본적인 조치입니다.</p>
+                            <p class="text-slate-700 mt-2">핵심 서버(sfmes, sfmc)를 VMware HA 클러스터로 구성하여 1번 서버 장애 시 **자동으로 2번 서버가 서비스를 인계**받도록 합니다. 이는 복구(Recovery)가 아닌, 장애 발생 시 **운영의 지속성**을 위한 가장 기본적인 조치입니다.</p>
                         </div>
                         <div id="pane-backup" class="solution-pane">
                             <h4 class="text-xl font-bold mb-2 text-emerald-700">2차 소산 백업 (NAS + Veeam)</h4>
@@ -406,7 +396,7 @@
         <section id="plan" class="pt-20 min-h-screen">
             <div class="text-center mb-12">
                 <h2 class="text-3xl md:text-4xl font-bold mb-4">현지 구축 실행 계획 (WBS) </h2>
-                <p class="text-lg text-slate-600 max-w-3xl mx-auto">11월 17일부터 11월 24일까지 진행되는 현지 집중 구축 작업을 추적합니다. 완료 시 체크박스를 눌러 진행 상황을 기록할 수 있으며, 코멘트와 사진 첨부 상태가 함께 저장됩니다. (Supabase DB: BT_CHK)</p>
+                <p class="text-lg text-slate-600 max-w-3xl mx-auto">11월 17일부터 11월 24일까지 진행되는 현지 집중 구축 작업을 추적합니다. 완료 시 체크박스를 눌러 진행 상황을 기록할 수 있으며, 코멘트와 함께 저장됩니다. (Supabase DB: BT_CHK)</p>
             </div>
 
             <div class="bg-white p-6 md:p-10 rounded-lg shadow-xl max-w-4xl mx-auto">
@@ -423,40 +413,10 @@
                         <div class="absolute -left-[14px] w-6 h-6 bg-blue-600 rounded-full border-4 border-white"></div>
                         <h4 class="text-xl font-bold text-blue-700">D-1 (11/17, 월) - 초기 환경 설정 및 인프라 구축</h4>
                         <p class="text-sm text-slate-500 mb-2">도착, 환경 점검 및 인프라 기본 구축</p>
-                        <div class="space-y-3">
-                            <div class="wbs-task">
-                                <label for="wbs-1-1" class="text-slate-700"><input type="checkbox" id="wbs-1-1" data-task-id="D-1-1">현지 Kick-off 미팅 및 인프라 실사</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-1-1" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-1-1"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-1-1"></span></label>
-                                    <input type="file" id="photo-D-1-1" data-photo-id="D-1-1" class="hidden" accept="image/*">
-                                </div>
-                            </div>
-                             <!-- New Item: 장비 검수 -->
-                            <div class="wbs-task">
-                                <label for="wbs-1-4" class="text-slate-700"><input type="checkbox" id="wbs-1-4" data-task-id="D-1-4">현지 도착 장비 검수 (수량/사양 일치 여부)</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-1-4" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-1-4"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-1-4"></span></label>
-                                    <input type="file" id="photo-D-1-4" data-photo-id="D-1-4" class="hidden" accept="image/*">
-                                </div>
-                            </div>
-                            <div class="wbs-task">
-                                <label for="wbs-1-2" class="text-slate-700"><input type="checkbox" id="wbs-1-2" data-task-id="D-1-2">L3 스위치 및 방화벽 설치, 기본 설정</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-1-2" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-1-2"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-1-2"></span></label>
-                                    <input type="file" id="photo-D-1-2" data-photo-id="D-1-2" class="hidden" accept="image/*">
-                                </div>
-                            </div>
-                            <div class="wbs-task">
-                                <label for="wbs-1-3" class="text-slate-700"><input type="checkbox" id="wbs-1-3" data-task-id="D-1-3">하이퍼바이저 클러스터 설치 및 구성</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-1-3" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-1-3"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-1-3"></span></label>
-                                    <input type="file" id="photo-D-1-3" data-photo-id="D-1-3" class="hidden" accept="image/*">
-                                </div>
-                            </div>
+                        <div class="space-y-1">
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-1-1" class="text-slate-700"><input type="checkbox" id="wbs-1-1" data-task-id="D-1-1">현지 Kick-off 미팅 및 인프라 실사</label><input type="text" class="comment-input" data-comment-id="D-1-1" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-1-2" class="text-slate-700"><input type="checkbox" id="wbs-1-2" data-task-id="D-1-2">L3 스위치 및 방화벽 설치, 기본 설정</label><input type="text" class="comment-input" data-comment-id="D-1-2" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-1-3" class="text-slate-700"><input type="checkbox" id="wbs-1-3" data-task-id="D-1-3">VMware vCenter 설치 및 클러스터 구성</label><input type="text" class="comment-input" data-comment-id="D-1-3" placeholder="코멘트 입력"></div></div>
                         </div>
                     </div>
                     <!-- Item 2 -->
@@ -464,23 +424,9 @@
                         <div class="absolute -left-[14px] w-6 h-6 bg-blue-600 rounded-full border-4 border-white"></div>
                         <h4 class="text-xl font-bold text-blue-700">D-2 (11/18, 화) - EDR 보안 솔루션 구축</h4>
                         <p class="text-sm text-slate-500 mb-2">EDR 및 1차 보안 시스템 설치</p>
-                        <div class="space-y-3">
-                            <div class="wbs-task">
-                                <label for="wbs-2-1" class="text-slate-700"><input type="checkbox" id="wbs-2-1" data-task-id="D-2-1">EDR(Genian) 서버 설치 및 정책 설정</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-2-1" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-2-1"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-2-1"></span></label>
-                                    <input type="file" id="photo-D-2-1" data-photo-id="D-2-1" class="hidden" accept="image/*">
-                                </div>
-                            </div>
-                            <div class="wbs-task">
-                                <label for="wbs-2-2" class="text-slate-700"><input type="checkbox" id="wbs-2-2" data-task-id="D-2-2">EDR 에이전트 배포 (서버 우선)</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-2-2" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-2-2"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-2-2"></span></label>
-                                    <input type="file" id="photo-D-2-2" data-photo-id="D-2-2" class="hidden" accept="image/*">
-                                </div>
-                            </div>
+                        <div class="space-y-1">
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-2-1" class="text-slate-700"><input type="checkbox" id="wbs-2-1" data-task-id="D-2-1">EDR(Genian) 서버 설치 및 정책 설정</label><input type="text" class="comment-input" data-comment-id="D-2-1" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-2-2" class="text-slate-700"><input type="checkbox" id="wbs-2-2" data-task-id="D-2-2">EDR 에이전트 배포 (서버 우선)</label><input type="text" class="comment-input" data-comment-id="D-2-2" placeholder="코멘트 입력"></div></div>
                         </div>
                     </div>
                     <!-- Item 3 -->
@@ -488,23 +434,9 @@
                         <div class="absolute -left-[14px] w-6 h-6 bg-blue-600 rounded-full border-4 border-white"></div>
                         <h4 class="text-xl font-bold text-blue-700">D-3 (11/19, 수) - HA 및 로그 시스템 구축</h4>
                         <p class="text-sm text-slate-500 mb-2">로그 서버 및 시스템 이중화</p>
-                        <div class="space-y-3">
-                            <div class="wbs-task">
-                                <label for="wbs-3-1" class="text-slate-700"><input type="checkbox" id="wbs-3-1" data-task-id="D-3-1">로그 분석 서버(FortiAnalyzer) 설치 및 연동</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-3-1" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-3-1"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-3-1"></span></label>
-                                    <input type="file" id="photo-D-3-1" data-photo-id="D-3-1" class="hidden" accept="image/*">
-                                </div>
-                            </div>
-                            <div class="wbs-task">
-                                <label for="wbs-3-2" class="text-slate-700 font-bold text-red-600"><input type="checkbox" id="wbs-3-2" data-task-id="D-3-2">[야간] 주요 서버 이중화(HA) 구성</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-3-2" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-3-2"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-3-2"></span></label>
-                                    <input type="file" id="photo-D-3-2" data-photo-id="D-3-2" class="hidden" accept="image/*">
-                                </div>
-                            </div>
+                        <div class="space-y-1">
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-3-1" class="text-slate-700"><input type="checkbox" id="wbs-3-1" data-task-id="D-3-1">로그 분석 서버(FortiAnalyzer) 설치 및 연동</label><input type="text" class="comment-input" data-comment-id="D-3-1" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-3-2" class="text-slate-700 font-bold text-red-600"><input type="checkbox" id="wbs-3-2" data-task-id="D-3-2">[야간] sfmes, sfmc 서버 이중화(HA) 구성</label><input type="text" class="comment-input" data-comment-id="D-3-2" placeholder="코멘트 입력"></div></div>
                         </div>
                     </div>
                     <!-- Item 4 -->
@@ -512,23 +444,9 @@
                         <div class="absolute -left-[14px] w-6 h-6 bg-blue-600 rounded-full border-4 border-white"></div>
                         <h4 class="text-xl font-bold text-blue-700">D-4 (11/20, 목) - 2차 백업 시스템 구축</h4>
                         <p class="text-sm text-slate-500 mb-2">2차 소산 백업 시스템 완성</p>
-                        <div class="space-y-3">
-                            <div class="wbs-task">
-                                <label for="wbs-4-1" class="text-slate-700"><input type="checkbox" id="wbs-4-1" data-task-id="D-4-1">2차 백업용 NAS 스토리지 설치 및 구성</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-4-1" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-4-1"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-4-1"></span></label>
-                                    <input type="file" id="photo-D-4-1" data-photo-id="D-4-1" class="hidden" accept="image/*">
-                                </div>
-                            </div>
-                            <div class="wbs-task">
-                                <label for="wbs-4-2" class="text-slate-700"><input type="checkbox" id="wbs-4-2" data-task-id="D-4-2">Veeam 백업 솔루션 설치 및 백업 정책 적용</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-4-2" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-4-2"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-4-2"></span></label>
-                                    <input type="file" id="photo-D-4-2" data-photo-id="D-4-2" class="hidden" accept="image/*">
-                                </div>
-                            </div>
+                        <div class="space-y-1">
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-4-1" class="text-slate-700"><input type="checkbox" id="wbs-4-1" data-task-id="D-4-1">2차 백업용 NAS 스토리지 설치 및 구성</label><input type="text" class="comment-input" data-comment-id="D-4-1" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-4-2" class="text-slate-700"><input type="checkbox" id="wbs-4-2" data-task-id="D-4-2">Veeam 백업 솔루션 설치 및 백업 정책 적용</label><input type="text" class="comment-input" data-comment-id="D-4-2" placeholder="코멘트 입력"></div></div>
                         </div>
                     </div>
                     <!-- Item 5 -->
@@ -536,31 +454,10 @@
                         <div class="absolute -left-[14px] w-6 h-6 bg-blue-600 rounded-full border-4 border-white"></div>
                         <h4 class="text-xl font-bold text-blue-700">D-5 ~ D-6 (11/21 ~ 22) - 테스트 및 안정화</h4>
                         <p class="text-sm text-slate-500 mb-2">시스템 전반 통합 테스트</p>
-                        <div class="space-y-3">
-                            <div class="wbs-task">
-                                <label for="wbs-5-1" class="text-slate-700"><input type="checkbox" id="wbs-5-1" data-task-id="D-5-1">시스템 이중화(HA) 페일오버 테스트</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-5-1" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-5-1"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-5-1"></span></label>
-                                    <input type="file" id="photo-D-5-1" data-photo-id="D-5-1" class="hidden" accept="image/*">
-                                </div>
-                            </div>
-                            <div class="wbs-task">
-                                <label for="wbs-5-2" class="text-slate-700"><input type="checkbox" id="wbs-5-2" data-task-id="D-5-2">백업/복구 시나리오 (시스템/파일 단위) 테스트</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-5-2" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-5-2"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-5-2"></span></label>
-                                    <input type="file" id="photo-D-5-2" data-photo-id="D-5-2" class="hidden" accept="image/*">
-                                </div>
-                            </div>
-                            <div class="wbs-task">
-                                <label for="wbs-5-3" class="text-slate-700"><input type="checkbox" id="wbs-5-3" data-task-id="D-5-3">보안 정책 적용 및 모니터링</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-5-3" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-5-3"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-5-3"></span></label>
-                                    <input type="file" id="photo-D-5-3" data-photo-id="D-5-3" class="hidden" accept="image/*">
-                                </div>
-                            </div>
+                        <div class="space-y-1">
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-5-1" class="text-slate-700"><input type="checkbox" id="wbs-5-1" data-task-id="D-5-1">시스템 이중화(HA) 페일오버 테스트</label><input type="text" class="comment-input" data-comment-id="D-5-1" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-5-2" class="text-slate-700"><input type="checkbox" id="wbs-5-2" data-task-id="D-5-2">백업/복구 시나리오 (VM, 파일 단위) 테스트</label><input type="text" class="comment-input" data-comment-id="D-5-2" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-5-3" class="text-slate-700"><input type="checkbox" id="wbs-5-3" data-task-id="D-5-3">보안 정책 적용 및 모니터링</label><input type="text" class="comment-input" data-comment-id="D-5-3" placeholder="코멘트 입력"></div></div>
                         </div>
                     </div>
                     <!-- Item 6 -->
@@ -568,31 +465,10 @@
                         <div class="absolute -left-[14px] w-6 h-6 bg-blue-600 rounded-full border-4 border-white"></div>
                         <h4 class="text-xl font-bold text-blue-700">D-7 ~ D-8 (11/23 ~ 24) - 최종 마무리</h4>
                         <p class="text-sm text-slate-500 mb-2">교육, 최종 점검 및 귀국</p>
-                        <div class="space-y-3">
-                            <div class="wbs-task">
-                                <label for="wbs-6-1" class="text-slate-700"><input type="checkbox" id="wbs-6-1" data-task-id="D-7-1">현지 IT 담당자 관리자 교육 (Veeam, EDR)</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-7-1" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-7-1"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-7-1"></span></label>
-                                    <input type="file" id="photo-D-7-1" data-photo-id="D-7-1" class="hidden" accept="image/*">
-                                </div>
-                            </div>
-                            <div class="wbs-task">
-                                <label for="wbs-6-2" class="text-slate-700"><input type="checkbox" id="wbs-6-2" data-task-id="D-7-2">운영 가이드 및 산출물 전달, 작업 확인서 서명</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-7-2" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-7-2"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-7-2"></span></label>
-                                    <input type="file" id="photo-D-7-2" data-photo-id="D-7-2" class="hidden" accept="image/*">
-                                </div>
-                            </div>
-                            <div class="wbs-task">
-                                <label for="wbs-6-3" class="text-slate-700"><input type="checkbox" id="wbs-6-3" data-task-id="D-7-3">(24일) 귀국 준비 및 출장 종료</label>
-                                <div class="comment-area">
-                                    <input type="text" class="comment-input" data-comment-id="D-7-3" placeholder="코멘트 입력">
-                                    <label class="photo-input-label" for="photo-D-7-3"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="D-7-3"></span></label>
-                                    <input type="file" id="photo-D-7-3" data-photo-id="D-7-3" class="hidden" accept="image/*">
-                                </div>
-                            </div>
+                        <div class="space-y-1">
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-6-1" class="text-slate-700"><input type="checkbox" id="wbs-6-1" data-task-id="D-7-1">현지 IT 담당자 관리자 교육 (Veeam, EDR)</label><input type="text" class="comment-input" data-comment-id="D-7-1" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-6-2" class="text-slate-700"><input type="checkbox" id="wbs-6-2" data-task-id="D-7-2">운영 가이드 및 산출물 전달, 작업 확인서 서명</label><input type="text" class="comment-input" data-comment-id="D-7-2" placeholder="코멘트 입력"></div></div>
+                            <div class="wbs-task"><div class="task-content"><label for="wbs-6-3" class="text-slate-700"><input type="checkbox" id="wbs-6-3" data-task-id="D-7-3">(24일) 귀국 준비 및 출장 종료</label><input type="text" class="comment-input" data-comment-id="D-7-3" placeholder="코멘트 입력"></div></div>
                         </div>
                     </div>
                 </div>
@@ -603,7 +479,7 @@
         <section id="checklist" class="pt-20 min-h-screen">
             <div class="text-center mb-12">
                 <h2 class="text-3xl md:text-4xl font-bold mb-4">출장 시 필수 완료 항목 체크리스트 </h2>
-                <p class="text-lg text-slate-600 max-w-3xl mx-auto">출장 기간 중 반드시 최종 검토 및 확인되어야 할 핵심 보안 강화 필수 항목 목록입니다. 코멘트와 사진 첨부 상태가 함께 저장됩니다. (Supabase DB: BT_CHK)</p>
+                <p class="text-lg text-slate-600 max-w-3xl mx-auto">출장 기간 중 반드시 최종 검토 및 확인되어야 할 핵심 보안 강화 필수 항목 목록입니다. 코멘트와 함께 저장됩니다. (Supabase DB: BT_CHK)</p>
             </div>
 
             <div class="bg-white p-6 md:p-10 rounded-lg shadow-xl max-w-4xl mx-auto">
@@ -618,120 +494,37 @@
                     <div class="wbs-task border-b pb-3 border-red-200">
                          <div class="task-content">
                             <label for="chk-m-1" class="text-red-700 font-bold flex-1"><input type="checkbox" id="chk-m-1" data-task-id="MD-1">1. 2차 소산 백업 (3-2-1 원칙) 완전 구축 확인</label>
-                            <div class="comment-area">
-                                <input type="text" class="comment-input" data-comment-id="MD-1" placeholder="검증 결과 코멘트">
-                                <label class="photo-input-label" for="photo-MD-1"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="MD-1"></span></label>
-                                <input type="file" id="photo-MD-1" data-photo-id="MD-1" class="hidden" accept="image/*">
-                            </div>
+                            <input type="text" class="comment-input" data-comment-id="MD-1" placeholder="검증 결과 코멘트">
                         </div>
                         <p class="text-sm text-slate-600 ml-8 mt-1 md:ml-0 md:mt-0">NAS가 물리적으로 분리되고, Veeam을 통한 2차 백업이 성공적으로 1회 이상 완료되었는지 검증.</p>
                     </div>
                     <div class="wbs-task border-b pb-3 border-red-200">
                         <div class="task-content">
                             <label for="chk-m-2" class="text-red-700 font-bold flex-1"><input type="checkbox" id="chk-m-2" data-task-id="MD-2">2. HA (이중화) 페일오버 자동 전환 테스트 성공</label>
-                            <div class="comment-area">
-                                <input type="text" class="comment-input" data-comment-id="MD-2" placeholder="검증 결과 코멘트">
-                                <label class="photo-input-label" for="photo-MD-2"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="MD-2"></span></label>
-                                <input type="file" id="photo-MD-2" data-photo-id="MD-2" class="hidden" accept="image/*">
-                            </div>
+                            <input type="text" class="comment-input" data-comment-id="MD-2" placeholder="검증 결과 코멘트">
                         </div>
-                        <p class="text-sm text-slate-600 ml-8 mt-1 md:ml-0 md:mt-0">주요 서버 Active 서버를 강제 종료 시 Standby 서버로 서비스가 5분 이내 자동 전환됨을 현지에서 시연 및 확인.</p>
+                        <p class="text-sm text-slate-600 ml-8 mt-1 md:ml-0 md:mt-0">sfmes/sfmc Active 서버를 강제 종료 시 Standby 서버로 서비스가 5분 이내 자동 전환됨을 현지에서 시연 및 확인.</p>
                     </div>
                     <div class="wbs-task border-b pb-3 border-red-200">
                         <div class="task-content">
                             <label for="chk-m-3" class="text-red-700 font-bold flex-1"><input type="checkbox" id="chk-m-3" data-task-id="MD-3">3. EDR 및 FortiAnalyzer 정책 활성화 및 모니터링 확인</label>
-                            <div class="comment-area">
-                                <input type="text" class="comment-input" data-comment-id="MD-3" placeholder="검증 결과 코멘트">
-                                <label class="photo-input-label" for="photo-MD-3"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="MD-3"></span></label>
-                                <input type="file" id="photo-MD-3" data-photo-id="MD-3" class="hidden" accept="image/*">
-                            </div>
+                            <input type="text" class="comment-input" data-comment-id="MD-3" placeholder="검증 결과 코멘트">
                         </div>
                         <p class="text-sm text-slate-600 ml-8 mt-1 md:ml-0 md:mt-0">EDR 서버 및 주요 엔드포인트에 에이전트 설치 완료, FortiAnalyzer에서 로그 수집 및 비정상 접근 시도 탐지 알림 기능 정상 작동 확인.</p>
                     </div>
 
                     <div class="flex justify-between items-center mb-6 pt-6 border-t">
-                        <h3 class="text-xl font-bold text-blue-700">기타 보안 및 운영 환경 필수 항목 (협의 및 교육)</h3>
+                        <h3 class="text-xl font-bold text-blue-700">기타 보안 및 운영 환경 필수 항목</h3>
                         <button id="etc_save_btn" data-part-code="ETC" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
                             기타 항목 저장
                         </button>
                     </div>
 
                     <div id="etc-checklist" data-group-id="etc" class="space-y-4">
-                        <!-- ETC-1 ~ ETC-2 (기존) -->
-                        <div class="wbs-task">
-                            <label for="chk-e-1" class="text-slate-700"><input type="checkbox" id="chk-e-1" data-task-id="ETC-1">기존 서버 6대 계정 분리 및 새 비밀번호 적용 완료</label>
-                            <div class="comment-area">
-                                <input type="text" class="comment-input" data-comment-id="ETC-1" placeholder="코멘트 입력">
-                                <label class="photo-input-label" for="photo-ETC-1"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="ETC-1"></span></label>
-                                <input type="file" id="photo-ETC-1" data-photo-id="ETC-1" class="hidden" accept="image/*">
-                            </div>
-                        </div>
-                        <div class="wbs-task">
-                            <label for="chk-e-2" class="text-slate-700"><input type="checkbox" id="chk-e-2" data-task-id="ETC-2">방화벽 MFA(2차 인증) 설정 및 현지 직원 테스트</label>
-                            <div class="comment-area">
-                                <input type="text" class="comment-input" data-comment-id="ETC-2" placeholder="코멘트 입력">
-                                <label class="photo-input-label" for="photo-ETC-2"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="ETC-2"></span></label>
-                                <input type="file" id="photo-ETC-2" data-photo-id="ETC-2" class="hidden" accept="image/*">
-                            </div>
-                        </div>
-                        
-                        <!-- ETC-5 (교육 실시) -->
-                        <div class="wbs-task">
-                            <label for="chk-e-5" class="text-slate-700"><input type="checkbox" id="chk-e-5" data-task-id="ETC-5">현지 임직원 대상 랜섬웨어 대응 교육 실시</label>
-                            <div class="comment-area">
-                                <input type="text" class="comment-input" data-comment-id="ETC-5" placeholder="코멘트 입력">
-                                <label class="photo-input-label" for="photo-ETC-5"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="ETC-5"></span></label>
-                                <input type="file" id="photo-ETC-5" data-photo-id="ETC-5" class="hidden" accept="image/*">
-                            </div>
-                        </div>
-                        
-                        <!-- ETC-6 (단말기 백신) -->
-                        <div class="wbs-task">
-                            <label for="chk-e-6" class="text-slate-700"><input type="checkbox" id="chk-e-6" data-task-id="ETC-6">단말기 백신 현황 조사 및 최신화 방안 협의</label>
-                            <div class="comment-area">
-                                <input type="text" class="comment-input" data-comment-id="ETC-6" placeholder="코멘트 입력">
-                                <label class="photo-input-label" for="photo-ETC-6"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="ETC-6"></span></label>
-                                <input type="file" id="photo-ETC-6" data-photo-id="ETC-6" class="hidden" accept="image/*">
-                            </div>
-                        </div>
-
-                        <!-- ETC-7 (무선 WiFi) -->
-                        <div class="wbs-task">
-                            <label for="chk-e-7" class="text-slate-700"><input type="checkbox" id="chk-e-7" data-task-id="ETC-7">무선 WiFi 망 구성 방안 협의 및 보안 정책 확정</label>
-                            <div class="comment-area">
-                                <input type="text" class="comment-input" data-comment-id="ETC-7" placeholder="코멘트 입력">
-                                <label class="photo-input-label" for="photo-ETC-7"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="ETC-7"></span></label>
-                                <input type="file" id="photo-ETC-7" data-photo-id="ETC-7" class="hidden" accept="image/*">
-                            </div>
-                        </div>
-                        
-                        <!-- ETC-8 (3차 백업) -->
-                        <div class="wbs-task">
-                            <label for="chk-e-8" class="text-slate-700"><input type="checkbox" id="chk-e-8" data-task-id="ETC-8">소산 백업 NAS 이후 3차 백업 방안 협의 (클라우드/테이프 등)</label>
-                            <div class="comment-area">
-                                <input type="text" class="comment-input" data-comment-id="ETC-8" placeholder="코멘트 입력">
-                                <label class="photo-input-label" for="photo-ETC-8"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="ETC-8"></span></label>
-                                <input type="file" id="photo-ETC-8" data-photo-id="ETC-8" class="hidden" accept="image/*">
-                            </div>
-                        </div>
-                        
-                        <!-- ETC-3 ~ ETC-4 (기존) -->
-                        <div class="wbs-task">
-                            <label for="chk-e-3" class="text-slate-700"><input type="checkbox" id="chk-e-3" data-task-id="ETC-3">현지 IT 담당자 대상 솔루션 관리자 교육 완료</label>
-                            <div class="comment-area">
-                                <input type="text" class="comment-input" data-comment-id="ETC-3" placeholder="코멘트 입력">
-                                <label class="photo-input-label" for="photo-ETC-3"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="ETC-3"></span></label>
-                                <input type="file" id="photo-ETC-3" data-photo-id="ETC-3" class="hidden" accept="image/*">
-                            </div>
-                        </div>
-                        <div class="wbs-task">
-                            <label for="chk-e-4" class="text-slate-700"><input type="checkbox" id="chk-e-4" data-task-id="ETC-4">최종 시스템 아키텍처 및 운영 매뉴얼 문서 현지 전달</label>
-                            <div class="comment-area">
-                                <input type="text" class="comment-input" data-comment-id="ETC-4" placeholder="코멘트 입력">
-                                <label class="photo-input-label" for="photo-ETC-4"><span class="text-xl">📸</span><span class="ml-1">사진</span><span class="photo-indicator bg-slate-400" data-indicator-id="ETC-4"></span></label>
-                                <input type="file" id="photo-ETC-4" data-photo-id="ETC-4" class="hidden" accept="image/*">
-                            </div>
-                        </div>
+                        <div class="wbs-task"><div class="task-content"><label for="chk-e-1" class="text-slate-700"><input type="checkbox" id="chk-e-1" data-task-id="ETC-1">기존 서버 6대 계정 분리 및 새 비밀번호 적용 완료</label><input type="text" class="comment-input" data-comment-id="ETC-1" placeholder="코멘트 입력"></div></div>
+                        <div class="wbs-task"><div class="task-content"><label for="chk-e-2" class="text-slate-700"><input type="checkbox" id="chk-e-2" data-task-id="ETC-2">방화벽 MFA(2차 인증) 설정 및 현지 직원 테스트</label><input type="text" class="comment-input" data-comment-id="ETC-2" placeholder="코멘트 입력"></div></div>
+                        <div class="wbs-task"><div class="task-content"><label for="chk-e-3" class="text-slate-700"><input type="checkbox" id="chk-e-3" data-task-id="ETC-3">현지 IT 담당자 대상 솔루션 관리자 교육 완료</label><input type="text" class="comment-input" data-comment-id="ETC-3" placeholder="코멘트 입력"></div></div>
+                        <div class="wbs-task"><div class="task-content"><label for="chk-e-4" class="text-slate-700"><input type="checkbox" id="chk-e-4" data-task-id="ETC-4">최종 시스템 아키텍처 및 운영 매뉴얼 문서 현지 전달</label><input type="text" class="comment-input" data-comment-id="ETC-4" placeholder="코멘트 입력"></div></div>
                     </div>
                 </div>
             </div>
@@ -811,23 +604,9 @@
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('Supabase 클라이언트가 초기화되었습니다.', supabaseClient);
         
-        // 요구사항에 따른 테이블 이름, 프로젝트 코드 및 스토리지 버킷 이름
+        // 요구사항에 따른 테이블 이름 및 프로젝트 코드
         const CHECKLIST_TABLE_NAME = 'BT_CHK';
         const PROJECT_CODE = 'NVH USA 보안 1차 출장';
-        const STORAGE_BUCKET_NAME = 'bt_chk'; // 사용자 요청 버킷 이름
-
-        /**
-         * Supabase Storage 클라이언트 인스턴스를 반환합니다.
-         */
-        const getSupabaseStorageClient = () => {
-             // Supabase Client에서 Storage 서비스를 얻습니다.
-             return supabaseClient.storage;
-        };
-
-        const getPhotoInput = (taskId) => {
-             return document.querySelector(`input[type="file"][data-photo-id="${taskId}"]`);
-        };
-
 
         // --- Utility Functions ---
 
@@ -850,121 +629,66 @@
         };
 
         /**
-         * 특정 그룹의 체크박스 상태, 코멘트, 파일 객체를 수집하여 DB 스키마에 맞는 형식으로 변환합니다.
-         * @param {string} containerId 체크박스 컨테이너 ID 
+         * 특정 그룹의 체크박스 상태와 코멘트를 수집하여 DB 스키마에 맞는 형식으로 변환합니다.
+         * @param {string} containerId 체크박스 컨테이너 ID (wbs-timeline, mandatory-checklist, etc-checklist)
          * @param {string} partCode MT, MD, ETC
          * @returns {Array} DB에 저장할 레코드 배열
          */
         const collectAndFormatChecklistData = (containerId, partCode) => {
             const container = document.getElementById(containerId);
-            const itemsToProcess = [];
+            const itemsToSave = [];
+            const currentDate = new Date().toISOString();
 
+            // 모든 체크박스/코멘트 입력쌍을 찾습니다.
             container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                const taskId = checkbox.getAttribute('data-task-id'); 
+                const taskId = checkbox.getAttribute('data-task-id'); // D-1-1, MD-1 등
                 
+                // 해당 ID에 매칭되는 코멘트 입력 필드를 찾습니다.
                 const commentInput = document.querySelector(`.comment-input[data-comment-id="${taskId}"]`);
                 const commentValue = commentInput ? commentInput.value : '';
 
-                const photoInput = getPhotoInput(taskId);
-                const file = photoInput && photoInput.files.length > 0 ? photoInput.files[0] : null;
-                
-                const isChecked = checkbox.checked;
-
-                // DB에 저장할 메타데이터 형식
-                const dbRecord = {
+                // DB 스키마에 맞춰 단일 레코드 객체를 생성합니다.
+                itemsToSave.push({
                     id: taskId, 
-                    created_at: new Date().toISOString(),
-                    part_code: JSON.stringify({ code: partCode }), 
-                    chk_result: isChecked,
-                    result_cmt: JSON.stringify({ comment: commentValue }), 
-                    project_code: JSON.stringify({ code: PROJECT_CODE }), 
-                    img_url: JSON.stringify({ url: '' }) // 초기 URL은 비워둠
-                };
-
-                itemsToProcess.push({
-                    taskId: taskId,
-                    dbRecord: dbRecord,
-                    file: file,
-                    isChecked: isChecked
+                    created_at: currentDate,
+                    
+                    // ********** 수정된 부분: JSONB 형식에 맞게 객체를 JSON 문자열로 변환 **********
+                    part_code: JSON.stringify({ code: partCode }), // JSONB 형식 저장
+                    // *************************************************************************
+                    
+                    chk_result: checkbox.checked, // true/false
+                    // seq는 DB에서 처리된다고 가정, 클라이언트에서는 전송하지 않음
+                    result_cmt: JSON.stringify({ comment: commentValue }), // JSONB 형식 저장
+                    project_code: JSON.stringify({ code: PROJECT_CODE }) // JSONB 형식 저장
+                    // img_url은 현재 미구현, 필요 시 JSON.stringify({}) 등으로 추가 가능
                 });
             });
-            return itemsToProcess;
+            return itemsToSave;
         };
-        
+
         /**
-         * 체크리스트 상태와 코멘트를 Supabase에 저장합니다. (조건부 파일 업로드 포함)
-         * @param {Array} itemsToProcess DB에 삽입할 레코드 배열
+         * 체크리스트 상태와 코멘트를 Supabase에 저장합니다.
+         * @param {Array} dataToInsert DB에 삽입할 레코드 배열
          * @param {string} groupId WBS, mandatory, etc 중 하나 (알림용)
          */
-        const saveChecklistToDB = async (itemsToProcess, groupId) => {
-            if (itemsToProcess.length === 0) {
+        const saveChecklistToDB = async (dataToInsert, groupId) => {
+            if (dataToInsert.length === 0) {
                  showAlert(`[${groupId}] 저장할 데이터가 없습니다.`, 'error');
                  return false;
             }
-            
-            const storage = getSupabaseStorageClient();
-            const dbRecordsToInsert = [];
 
-            for (const item of itemsToProcess) {
-                let imageUrl = '';
-                
-                // ⭐ 조건: 체크되어 있고(item.isChecked), 파일이 존재할 경우에만 Storage에 업로드
-                if (item.isChecked && item.file) {
-                    const fileName = `${item.taskId}_${Date.now()}_${item.file.name.replace(/ /g, '_')}`;
-                    const filePath = `checklists/${PROJECT_CODE.replace(/ /g, '_')}/${fileName}`;
-                    
-                    try {
-                        showAlert(`[${item.taskId}] 이미지 업로드 시작...`, 'success');
-                        const { data: uploadData, error: uploadError } = await storage
-                            .from(STORAGE_BUCKET_NAME)
-                            .upload(filePath, item.file, {
-                                cacheControl: '3600',
-                                upsert: false
-                            });
-                        
-                        if (uploadError) {
-                            console.error(`Storage 업로드 오류 (${item.taskId}):`, uploadError);
-                            showAlert(`[${item.taskId}] 사진 업로드 실패. DB에 사진 URL 저장 안됨.`, 'error');
-                            // 업로드 실패 시 URL을 저장하지 않고 다음 항목으로 이동
-                        } else {
-                            // 공개 URL을 가져옵니다. (Supabase Storage 권한 설정이 필요함)
-                            const { data: publicURLData } = storage
-                                .from(STORAGE_BUCKET_NAME)
-                                .getPublicUrl(filePath);
-                                
-                            imageUrl = publicURLData.publicUrl;
-                            showAlert(`[${item.taskId}] 사진 업로드 및 URL 획득 완료.`, 'success');
-                            
-                            // 업로드 성공 후 UI 인디케이터를 초록색으로 변경
-                            const indicator = document.querySelector(`.photo-indicator[data-indicator-id="${item.taskId}"]`);
-                            if (indicator) {
-                                indicator.classList.remove('bg-slate-400', 'bg-yellow-500');
-                                indicator.classList.add('bg-green-500');
-                            }
-                        }
-                    } catch (e) {
-                         console.error(`Storage 업로드 트랜잭션 오류 (${item.taskId}):`, e);
-                         showAlert(`[${item.taskId}] 업로드 중 예기치 않은 오류 발생.`, 'error');
-                    }
-                }
-                
-                // DB 레코드에 최종 이미지 URL을 반영
-                item.dbRecord.img_url = JSON.stringify({ url: imageUrl });
-                dbRecordsToInsert.push(item.dbRecord);
-            }
-            
-            // 모든 파일 처리가 끝난 후 DB에 일괄 저장
             try {
-                const { error: dbError } = await supabaseClient 
+                // 여러 항목을 한 번에 삽입 (Insert)
+                const { error } = await supabaseClient 
                     .from(CHECKLIST_TABLE_NAME)
-                    .insert(dbRecordsToInsert);
+                    .insert(dataToInsert);
 
-                if (dbError) {
-                    console.error('Supabase DB 저장 오류:', dbError);
-                    showAlert(`[${groupId}] 체크리스트 DB 저장 실패: ${dbError.message}.`, 'error');
+                if (error) {
+                    console.error('Supabase 저장 오류:', error);
+                    showAlert(`[${groupId}] 저장 실패: ${error.message}. (DB 구조/권한 확인)`, 'error');
                     return false;
                 }
-                showAlert(`[${groupId}] 체크리스트 (DB) 저장 완료. 총 ${dbRecordsToInsert.length} 항목.`, 'success');
+                showAlert(`[${groupId}] 체크리스트 상태 및 코멘트가 성공적으로 저장되었습니다. (${dataToInsert.length} 항목)`, 'success');
                 return true;
             } catch (err) {
                 console.error('DB 트랜잭션 오류:', err);
@@ -974,15 +698,21 @@
         };
 
         /**
-         * Supabase에서 저장된 체크리스트 상태와 코멘트, 이미지 URL을 불러와 적용합니다.
+         * Supabase에서 저장된 체크리스트 상태와 코멘트를 불러와 적용합니다.
+         * 가장 최근에 저장된 데이터만 사용하기 위해 created_at 기준 최신 데이터를 불러옵니다.
+         * @param {string} partCode MT, MD, ETC
+         * @param {string} groupId WBS, mandatory, etc 중 하나 (알림용)
          */
         const loadChecklistFromDB = async (partCode, groupId) => {
             try {
+                // ********** 수정된 부분: JSONB 컬럼 쿼리 문법 사용 **********
                 const { data, error } = await supabaseClient
                     .from(CHECKLIST_TABLE_NAME)
-                    .select('id, chk_result, result_cmt, img_url, created_at')
+                    // JSONB 필드 part_code에서 'code' 키의 값이 partCode와 일치하는지 확인
+                    .select('id, chk_result, result_cmt, created_at')
                     .eq('part_code->>code', partCode)
                     .order('created_at', { ascending: false });
+                // ***************************************************************
                 
                 if (error && error.code !== 'PGRST116' && error.code !== 'PGRST205' && error.code !== '22P02') {
                     console.error('Supabase 불러오기 오류:', error);
@@ -991,32 +721,28 @@
                 }
                 
                 if (error && (error.code === 'PGRST205' || error.code === '22P02')) {
+                     // 22P02 오류는 JSONB 쿼리 시 발생할 수 있으므로, 테이블이 없거나 데이터 타입 불일치로 간주
                      console.error(`테이블 '${CHECKLIST_TABLE_NAME}'을 찾을 수 없거나 쿼리 오류 발생. DB 스키마를 확인해주세요.`, error);
                      showAlert(`[${groupId}] DB 테이블/쿼리 설정 오류.`, 'error');
                      return;
                 }
 
                 if (data && data.length > 0) {
+                    // ID별로 최신 상태만 추출하여 { taskId: { isChecked: bool, comment: string } } 형태로 만듭니다.
                     const latestStatus = {};
                     data.forEach(item => {
                         if (!latestStatus[item.id]) {
+                            // ID가 처음 등장하면 (created_at 내림차순이므로 최신임) 저장
                             let comment = '';
-                            let imageUrl = '';
                             try {
                                 comment = JSON.parse(item.result_cmt)?.comment || '';
                             } catch (e) {
-                                comment = item.result_cmt;
-                            }
-                            try {
-                                imageUrl = JSON.parse(item.img_url)?.url || '';
-                            } catch (e) {
-                                imageUrl = '';
+                                comment = item.result_cmt; // JSON 파싱 실패 시 원본 문자열 사용
                             }
 
                             latestStatus[item.id] = {
                                 isChecked: item.chk_result,
-                                comment: comment,
-                                imageUrl: imageUrl
+                                comment: comment
                             };
                         }
                     });
@@ -1034,7 +760,9 @@
         };
 
         /**
-         * 불러온 상태 데이터를 UI에 적용합니다.
+         * 불러온 상태 데이터를 체크박스와 코멘트 입력란에 적용합니다.
+         * @param {string} groupId WBS, mandatory, etc 중 하나
+         * @param {Object} latestStatus 적용할 최신 상태 데이터
          */
         const applyChecklistStatus = (groupId, latestStatus) => {
             let container;
@@ -1054,7 +782,6 @@
                 
                 const label = document.querySelector(`label[for="${checkbox.id}"]`);
                 const commentInput = document.querySelector(`.comment-input[data-comment-id="${taskId}"]`);
-                const photoIndicator = document.querySelector(`.photo-indicator[data-indicator-id="${taskId}"]`);
                 
                 if (state) {
                     checkbox.checked = state.isChecked;
@@ -1064,14 +791,8 @@
                     if (commentInput) {
                         commentInput.value = state.comment || '';
                     }
-                    if (photoIndicator) {
-                        // URL이 있으면 초록색으로 표시
-                        const hasURL = state.imageUrl && state.imageUrl.length > 0;
-                        photoIndicator.classList.remove('bg-slate-400', 'bg-green-500', 'bg-yellow-500');
-                        photoIndicator.classList.add(hasURL ? 'bg-green-500' : 'bg-slate-400');
-                    }
                 } else {
-                    // 데이터 없을 때 초기화
+                    // DB에 해당 ID가 없으면 기본 상태 (체크 해제, 코멘트 삭제)
                     checkbox.checked = false;
                     if (label) {
                         label.classList.remove('checked-task');
@@ -1079,35 +800,9 @@
                     if (commentInput) {
                         commentInput.value = '';
                     }
-                    if (photoIndicator) {
-                        photoIndicator.classList.remove('bg-green-500', 'bg-yellow-500');
-                        photoIndicator.classList.add('bg-slate-400');
-                    }
                 }
             });
         };
-        
-        // --- Photo Indicator Handler ---
-        document.querySelectorAll('input[type="file"][data-photo-id]').forEach(photoInput => {
-            photoInput.addEventListener('change', (e) => {
-                const taskId = e.target.getAttribute('data-photo-id');
-                const indicator = document.querySelector(`.photo-indicator[data-indicator-id="${taskId}"]`);
-                
-                if (indicator) {
-                    const hasFile = e.target.files.length > 0;
-                    indicator.classList.remove('bg-slate-400', 'bg-green-500', 'bg-yellow-500');
-                    // 파일 선택 시 저장 대기 상태(노란색)로 임시 표시
-                    indicator.classList.add(hasFile ? 'bg-yellow-500' : 'bg-slate-400');
-                }
-                
-                if (e.target.files.length > 0) {
-                     showAlert(`[${taskId}] 사진 파일 첨부 대기 완료. 저장 버튼을 눌러야 업로드됩니다.`, 'success');
-                } else {
-                     showAlert(`[${taskId}] 사진 파일 첨부가 취소되었습니다.`, 'error');
-                }
-            });
-        });
-
 
         // --- Main Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -1157,6 +852,7 @@
             const allCheckboxes = document.querySelectorAll('input[type="checkbox"][data-task-id]');
             allCheckboxes.forEach(checkbox => {
                 checkbox.addEventListener('change', (e) => {
+                    const taskId = e.target.getAttribute('data-task-id');
                     const label = document.querySelector(`label[for="${e.target.id}"]`);
                     if (label) {
                         label.classList.toggle('checked-task', e.target.checked);
@@ -1169,20 +865,20 @@
             
             // WBS 저장 버튼 (MT)
             document.getElementById('wbs_save_btn').addEventListener('click', () => {
-                const itemsToProcess = collectAndFormatChecklistData('wbs-timeline', 'MT');
-                saveChecklistToDB(itemsToProcess, 'WBS');
+                const dataToInsert = collectAndFormatChecklistData('wbs-timeline', 'MT');
+                saveChecklistToDB(dataToInsert, 'WBS');
             });
 
             // 필수 항목 저장 버튼 (MD)
             document.getElementById('mandatory_save_btn').addEventListener('click', () => {
-                const itemsToProcess = collectAndFormatChecklistData('mandatory-checklist', 'MD');
-                saveChecklistToDB(itemsToProcess, '필수 항목');
+                const dataToInsert = collectAndFormatChecklistData('mandatory-checklist', 'MD');
+                saveChecklistToDB(dataToInsert, '필수 항목');
             });
 
             // 기타 항목 저장 버튼 (ETC)
             document.getElementById('etc_save_btn').addEventListener('click', () => {
-                 const itemsToProcess = collectAndFormatChecklistData('etc-checklist', 'ETC');
-                 saveChecklistToDB(itemsToProcess, '기타 항목');
+                 const dataToInsert = collectAndFormatChecklistData('etc-checklist', 'ETC');
+                 saveChecklistToDB(dataToInsert, '기타 항목');
             });
 
 
